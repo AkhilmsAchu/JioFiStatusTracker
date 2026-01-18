@@ -83,7 +83,7 @@ class IntegerWidgetProvider : AppWidgetProvider() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val batteryData = fetchBatteryData()
-                    val timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                    val timestamp = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
 
                     withContext(Dispatchers.Main) {
                         views.setTextViewText(
