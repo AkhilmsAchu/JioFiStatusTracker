@@ -7,12 +7,16 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class IntegerWidgetProvider : AppWidgetProvider() {
 
@@ -21,9 +25,36 @@ class IntegerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        // Schedule periodic updates using WorkManager
+        scheduleWidgetUpdates(context)
+
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        // Widget added for the first time, schedule updates
+        scheduleWidgetUpdates(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        // Last widget removed, cancel updates
+        WorkManager.getInstance(context).cancelUniqueWork("WidgetUpdate")
+    }
+
+    private fun scheduleWidgetUpdates(context: Context) {
+        val updateRequest = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(
+            10, TimeUnit.MINUTES // Update every 10 minutes
+        ).build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "WidgetUpdate",
+            ExistingPeriodicWorkPolicy.KEEP,
+            updateRequest
+        )
     }
 
     companion object {
@@ -45,6 +76,7 @@ class IntegerWidgetProvider : AppWidgetProvider() {
                 context, 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            // Set click listener on the entire widget layout
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
             // Fetch and update the values
