@@ -6,7 +6,9 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.widget.RemoteViews
+import androidx.core.app.NotificationCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -84,6 +86,8 @@ class IntegerWidgetProvider : AppWidgetProvider() {
                 try {
                     val batteryData = fetchBatteryData()
                     val timestamp = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+
+                    checkBatteryAndNotify(context, batteryData)
 
                     withContext(Dispatchers.Main) {
                         views.setTextViewText(
@@ -172,6 +176,84 @@ class IntegerWidgetProvider : AppWidgetProvider() {
             } catch (e: Exception) {
                 return BatteryData("N/A", "N/A", 0)
             }
+        }
+
+        private fun checkBatteryAndNotify(context: Context, batteryData: BatteryData) {
+            val percentage = batteryData.percentageValue
+            val status = batteryData.status
+
+            val prefs = context.getSharedPreferences("battery_prefs", Context.MODE_PRIVATE)
+            val lastNotifType = prefs.getString("last_notification_type", "")
+
+            // Low battery notification (below 30% and discharging)
+            if (percentage in 1..29 && status == "Discharging") {
+                if (lastNotifType != "low") {
+                    sendNotification(
+                        context,
+                        "Battery Low - $percentage%",
+                        "⚠️ Time to switch on charging!",
+                        1
+                    )
+                    prefs.edit().putString("last_notification_type", "low").apply()
+                }
+            }
+            // High battery notification (above 90% and charging/full)
+            else if (percentage > 90 && (status == "Charging" || status == "Full Charged")) {
+                if (lastNotifType != "high") {
+                    sendNotification(
+                        context,
+                        "Battery Full - $percentage%",
+                        "✅ Time to switch off charging!",
+                        2
+                    )
+                    prefs.edit().putString("last_notification_type", "high").apply()
+                }
+            }
+            // Reset notification state when battery is in normal range
+            else {
+                if (lastNotifType != "") {
+                    prefs.edit().putString("last_notification_type", "").apply()
+                }
+            }
+        }
+
+        private fun sendNotification(context: Context, title: String, message: String, notificationId: Int) {
+            val channelId = "battery_alerts"
+
+            // Create notification channel for Android 8.0+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = android.app.NotificationChannel(
+                    channelId,
+                    "Battery Alerts",
+                    android.app.NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Notifications for battery charging alerts"
+                }
+
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            // Create an empty PendingIntent that does nothing
+            val intent = Intent()
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.notify(notificationId, notification)
         }
     }
 }
