@@ -125,7 +125,7 @@ class IntegerWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        private fun fetchBatteryData(): BatteryData {
+        public fun fetchBatteryData(): BatteryData {
             val url = java.net.URL("http://jiofi.local.html/st_dev.w.xml")
             val connection = url.openConnection() as java.net.HttpURLConnection
 
