@@ -7,10 +7,12 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.wifi.WifiManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import java.util.Calendar
 
 class WidgetUpdateWorker(
     context: Context,
@@ -40,8 +42,35 @@ class WidgetUpdateWorker(
         return Result.success()
     }
 
+    private fun isNotificationAllowed(): Boolean {
+        val now = Calendar.getInstance()
+        val hour = now.get(Calendar.HOUR_OF_DAY)
+        val minute = now.get(Calendar.MINUTE)
+
+        // Convert current time to minutes since midnight
+        val currentMinutes = hour * 60 + minute
+
+        val nightStart = 22 * 60 + 30   // 10:30 PM = 1350
+        val morningEnd = 7 * 60         // 7:00 AM = 420
+
+        // Blocked if between 10:30 PM → midnight OR midnight → 7:00 AM
+        return !(currentMinutes >= nightStart || currentMinutes < morningEnd)
+    }
+
     private fun checkBatteryAndNotify() {
         try {
+
+            val wifiManager =
+                applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+            if (!isNotificationAllowed())
+            {
+                wifiManager.isWifiEnabled = false
+                return
+            }
+
+            wifiManager.isWifiEnabled = true
+
             val batteryData = IntegerWidgetProvider.fetchBatteryData()
             val percentage = batteryData.percentageValue
             val status = batteryData.status
