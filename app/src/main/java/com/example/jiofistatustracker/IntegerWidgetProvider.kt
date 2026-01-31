@@ -129,7 +129,7 @@ class IntegerWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        public fun fetchBatteryData(): BatteryData {
+        fun fetchBatteryData(): BatteryData {
             val url = java.net.URL("http://jiofi.local.html/st_dev.w.xml")
             val connection = url.openConnection() as java.net.HttpURLConnection
 
@@ -173,31 +173,14 @@ class IntegerWidgetProvider : AppWidgetProvider() {
                 } else {
                     return BatteryData("N/A", "N/A", 0)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 return BatteryData("N/A", "N/A", 0)
             }
-        }
-
-        private fun isNotificationAllowed(): Boolean {
-            val now = Calendar.getInstance()
-            val hour = now.get(Calendar.HOUR_OF_DAY)
-            val minute = now.get(Calendar.MINUTE)
-
-            // Convert current time to minutes since midnight
-            val currentMinutes = hour * 60 + minute
-
-            val nightStart = 22 * 60 + 30   // 10:30 PM = 1350
-            val morningEnd = 7 * 60         // 7:00 AM = 420
-
-            // Blocked if between 10:30 PM → midnight OR midnight → 7:00 AM
-            return !(currentMinutes >= nightStart || currentMinutes < morningEnd)
         }
 
         private fun checkBatteryAndNotify(context: Context, batteryData: BatteryData) {
             val percentage = batteryData.percentageValue
             val status = batteryData.status
-
-            if (!isNotificationAllowed()) return
 
             // Low battery notification (below 30% and discharging)
             if (percentage in 1..29 && status == "Discharging") {
