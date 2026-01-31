@@ -21,8 +21,6 @@ class WidgetUpdateWorker(
         private const val CHANNEL_ID = "battery_alerts"
         private const val NOTIF_LOW_BATTERY = 1
         private const val NOTIF_HIGH_BATTERY = 2
-        private const val PREFS_NAME = "battery_prefs"
-        private const val KEY_LAST_NOTIF_TYPE = "last_notification_type"
     }
 
     override suspend fun doWork(): Result {
@@ -48,36 +46,21 @@ class WidgetUpdateWorker(
             val percentage = batteryData.percentageValue
             val status = batteryData.status
 
-            val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val lastNotifType = prefs.getString(KEY_LAST_NOTIF_TYPE, "")
-
             // Low battery notification (below 30% and discharging)
             if (percentage in 1..29 && status == "Discharging") {
-                if (lastNotifType != "low") {
-                    sendNotification(
-                        "Battery Low - $percentage%",
-                        "⚠️ Time to switch on charging!",
-                        NOTIF_LOW_BATTERY
-                    )
-                    prefs.edit().putString(KEY_LAST_NOTIF_TYPE, "low").apply()
-                }
+                sendNotification(
+                    "Battery Low - $percentage%",
+                    "⚠️ Time to switch on charging!",
+                    NOTIF_LOW_BATTERY
+                )
             }
             // High battery notification (above 90% and charging)
             else if (percentage > 90 && (status == "Charging" || status == "Full Charged")) {
-                if (lastNotifType != "high") {
-                    sendNotification(
-                        "Battery Full - $percentage%",
-                        "✅ Time to switch off charging!",
-                        NOTIF_HIGH_BATTERY
-                    )
-                    prefs.edit().putString(KEY_LAST_NOTIF_TYPE, "high").apply()
-                }
-            }
-            // Reset notification state when battery is in normal range
-            else {
-                if (lastNotifType != "") {
-                    prefs.edit().putString(KEY_LAST_NOTIF_TYPE, "").apply()
-                }
+                sendNotification(
+                    "Battery Full - $percentage%",
+                    "✅ Time to switch off charging!",
+                    NOTIF_HIGH_BATTERY
+                )
             }
 
         } catch (e: Exception) {
